@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================================
-# 🚀 GCP MULTI-ENGINE PROXY DEPLOYER (ULTIMATE SOLID EDITION)
+# 🚀 GCP MULTI-ENGINE PROXY DEPLOYER (ULTIMATE FIXED EDITION)
 # ✅ ENGINES: OPENRESTY | ENVOY | HAPROXY | CADDY | SING-BOX
 # =========================================================
 
@@ -161,7 +161,7 @@ deploy_new_service() {
   echo "2) Envoy Proxy        - [High Performance / Cloud Native]"
   echo "3) HAProxy            - [Ultra Low Latency / Ultra Stable]"
   echo "4) Caddy Proxy        - [Modern / Ultra Fast / Zero-Buffer WS]"
-  echo "5) Sing-Box Engine    - [100% Pure Core / Ultra Light & Fast] ⚡"
+  echo "5) Sing-Box Engine    - [100% Pure Core / Port 8080 Fix] ⚡"
   while true; do
       read -p "Select Engine [1-5]: " ENGINE_CHOICE
       case $ENGINE_CHOICE in
@@ -270,7 +270,7 @@ EOF
 
   DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}</style></head><body><div><h1>System Operational</h1><p>Gateway services working as expected.</p></div></body></html>'
 
-  # 1. OPENRESTY ENGINE (SOLID TIMEOUT FIX)
+  # 1. OPENRESTY ENGINE
   if [ "$ENGINE" = "openresty" ]; then
     cat > nginx.conf <<EOF
 worker_processes auto;
@@ -323,7 +323,7 @@ EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 2. ENVOY ENGINE (SOLID WEBSOCKET TIMEOUTS)
+  # 2. ENVOY ENGINE
   elif [ "$ENGINE" = "envoy" ]; then
     cat > envoy.yaml <<EOF
 static_resources:
@@ -385,7 +385,7 @@ EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 3. HAPROXY ENGINE (SOLID TUNNEL TIMEOUT)
+  # 3. HAPROXY ENGINE
   elif [ "$ENGINE" = "haproxy" ]; then
     cat > haproxy.cfg <<EOF
 global
@@ -443,7 +443,7 @@ EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 4. CADDY ENGINE (SOLID FLUSH INTERVAL)
+  # 4. CADDY ENGINE
   elif [ "$ENGINE" = "caddy" ]; then
     cat > Caddyfile <<EOF
 {
@@ -497,7 +497,7 @@ EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 5. PURE SING-BOX ENGINE (100% VALIDATED SOLID JSON)
+  # 5. PURE SING-BOX ENGINE (FIXED SINGLE INBOUND PORT 8080)
   elif [ "$ENGINE" = "singbox" ]; then
     cat > singbox.json <<EOF
 {
@@ -506,23 +506,6 @@ EOF
     "timestamp": true
   },
   "inbounds": [
-    {
-      "type": "trojan",
-      "tag": "trojan-in",
-      "listen": "0.0.0.0",
-      "listen_port": 8080,
-      "users": [
-        {
-          "name": "gcp-user",
-          "password": "gcp-xray"
-        }
-      ],
-      "transport": {
-        "type": "ws",
-        "path": "/trojan-ws",
-        "max_early_data": 2048
-      }
-    },
     {
       "type": "vless",
       "tag": "vless-in",
@@ -539,13 +522,6 @@ EOF
         "path": "/vless-ws",
         "max_early_data": 2048
       }
-    },
-    {
-      "type": "direct",
-      "tag": "health-in",
-      "listen": "0.0.0.0",
-      "listen_port": 8080,
-      "network": "tcp"
     }
   ],
   "outbounds": [
@@ -602,9 +578,9 @@ EOF
 while true; do
   clear
   echo "======================================"
-  echo "GCP MULTI-5-ENGINES PROXY DEPLOYER MENU  "
+  echo "GCP MULTI-ENGINE PROXY DEPLOYER MENU  "
   echo "======================================"
-  echo "1) Deploy New GCP Service (Solid Engines)"
+  echo "1) Deploy New GCP Service (Fixed & Solid)"
   echo "2) List All Services & FULL DETAILS"
   echo "3) Exit Script"
   echo "======================================"
