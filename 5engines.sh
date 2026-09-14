@@ -568,7 +568,7 @@ EOF
   echo -e "\n${CYAN}=========================================${NC}"
   echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL! ENGINE: ${ENGINE^^}${NC}"
   echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}🔗 URL / HOST:${NC} $DOMAIN"
+  echo -e "${GREEN}🔗 URL / HOST:${NC} $CANONICAL_LINK"
   echo -e "${GREEN}💚 HEALTH CHECK:${NC} $CANONICAL_LINK/health"
   echo -e "${CYAN}=========================================${NC}"
 
@@ -578,7 +578,7 @@ EOF
 while true; do
   clear
   echo "======================================"
-  echo "GCP MULTI-ENGINE PROXY DEPLOYER MENU  "
+  echo "GCP MULTI-5-ENGINES PROXY DEPLOYER MENU  "
   echo "======================================"
   echo "1) Deploy New GCP Service (Fixed & Solid)"
   echo "2) List All Services & FULL DETAILS"
