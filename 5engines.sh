@@ -350,7 +350,7 @@ static_resources:
               - match: { prefix: "/vless-ws" }
                 route: { cluster: vless_cluster, timeout: 0s, idle_timeout: 3600s, upgrade_configs: [{ upgrade_type: "websocket" }] }
               - match: { prefix: "/" }
-                direct_response: { status: 200, body: { inline_string: "Operational" } }
+                direct_response: { status: 200, body: { inline_string: "Envoy Is Operational" } }
           http_filters:
           - name: envoy.filters.http.router
             typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
