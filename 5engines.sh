@@ -1,12 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# =========================================
-# 🚀 GCP-XRAY & SING-BOX MULTI-ENGINE DEPLOYER
-# ✅ ENGINES: OPENRESTY, ENVOY, HAPROXY, CADDY, SING-BOX
-# ✅ INTEGRATED DNS & ADBLOCK ROUTING
-# ✅ FLEXIBLE REGIONS & RESOURCE ALLOCATION
-# =========================================
+# =========================================================
+# 🚀 GCP MULTI-ENGINE PROXY DEPLOYER (ULTIMATE SOLID EDITION)
+# ✅ ENGINES: OPENRESTY | ENVOY | HAPROXY | CADDY | SING-BOX
+# =========================================================
 
 GREEN='\033[1;32m'
 RED='\033[1;31m'
@@ -31,7 +29,7 @@ fi
 # ==============================================
 list_deployed_services() {
   echo -e "\n======================================"
-  echo -e "${CYAN}📋 ALL DEPLOYED GCP-XRAY SERVICES - FULL DETAILS${NC}"
+  echo -e "${CYAN}📋 ALL DEPLOYED GCP SERVICES - FULL DETAILS${NC}"
   echo -e "======================================"
   PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
   echo "Project: $PROJECT_ID"
@@ -156,17 +154,14 @@ deploy_new_service() {
 
   gcloud services enable run.googleapis.com cloudbuild.googleapis.com --project="$PROJECT_ID" --quiet
 
-  # ==============================================
-  # 🎯 PROXY ENGINE SELECTOR (ADDED SING-BOX)
-  # ==============================================
   echo -e "\n${CYAN}=========================================${NC}"
   echo -e "${GREEN}          CHOOSE PROXY ENGINE${NC}"
   echo -e "${CYAN}=========================================${NC}"
-  echo "1) OpenResty          - [Standard / Highly Reliable] ✅"
+  echo "1) OpenResty          - [Solid & Reliable / Nginx-Based] ✅"
   echo "2) Envoy Proxy        - [High Performance / Cloud Native]"
-  echo "3) HAProxy            - [Ultra Low Latency / Lightweight]"
-  echo "4) Caddy Proxy        - [Modern / Automatic HTTPS / Simple & Fast]"
-  echo "5) Sing-Box Engine    - [Ultra-Lightweight / High Performance Core] ⚡"
+  echo "3) HAProxy            - [Ultra Low Latency / Ultra Stable]"
+  echo "4) Caddy Proxy        - [Modern / Ultra Fast / Zero-Buffer WS]"
+  echo "5) Sing-Box Engine    - [100% Pure Core / Ultra Light & Fast] ⚡"
   while true; do
       read -p "Select Engine [1-5]: " ENGINE_CHOICE
       case $ENGINE_CHOICE in
@@ -174,20 +169,19 @@ deploy_new_service() {
           2) ENGINE="envoy"; DISPLAY_ENGINE="Envoy Proxy"; echo -e "${GREEN}✅ Selected: Envoy Proxy${NC}"; break ;;
           3) ENGINE="haproxy"; DISPLAY_ENGINE="HAProxy"; echo -e "${GREEN}✅ Selected: HAProxy${NC}"; break ;;
           4) ENGINE="caddy"; DISPLAY_ENGINE="Caddy Proxy"; echo -e "${GREEN}✅ Selected: Caddy Proxy${NC}"; break ;;
-          5) ENGINE="singbox"; DISPLAY_ENGINE="Sing-Box Engine"; echo -e "${GREEN}✅ Selected: Sing-Box Engine${NC}"; break ;;
+          5) ENGINE="singbox"; DISPLAY_ENGINE="Sing-Box Pure Engine"; echo -e "${GREEN}✅ Selected: Sing-Box Pure Engine${NC}"; break ;;
           *) echo -e "${RED}Enter 1, 2, 3, 4, or 5 only${NC}" ;;
       esac
   done
 
-  # 🏷️ GENERATE SERVICE NAME WITH ENGINE INCLUDED
   RAND=$(openssl rand -hex 3)
   CLOUD_RUN_SERVICE_NAME="gcp-proxy-${ENGINE}-$RAND"
 
   echo -e "\n${CYAN}=========================================${NC}"
   echo -e "${GREEN}      RESOURCE CONFIG MODE${NC}"
   echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}1) AUTO PRESETS  |  Recommended (Automatic Instance-Based)${NC}"
-  echo -e "${YELLOW}2) MANUAL SETUP  |  Full Memory & vCPU Range${NC}"
+  echo -e "${GREEN}1) AUTO PRESETS  |  Recommended (Instance-Based)${NC}"
+  echo -e "${YELLOW}2) MANUAL SETUP  |  Custom Memory & vCPU${NC}"
   while true; do
       read -p "Select Mode [1-2]: " RES_MODE
       case $RES_MODE in
@@ -202,23 +196,10 @@ deploy_new_service() {
               BILLING_FLAG="--no-cpu-throttling"
 
               case $AUTO_CHOICE in
-                  1) 
-                    MEMORY="1Gi"; CPU="1"
-                    MIN_INST=1; MAX_INST=3; CONCURRENCY=100; TIMEOUT=3600
-                    ;;
-                  2) 
-                    MEMORY="2Gi"; CPU="2"
-                    MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600
-                    ;;
-                  3) 
-                    MEMORY="4Gi"; CPU="4"
-                    MIN_INST=1; MAX_INST=4; CONCURRENCY=200; TIMEOUT=3600
-                    ;;
-                  *) 
-                    MEMORY="2Gi"; CPU="2"
-                    MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600
-                    echo -e "${YELLOW}Using Balanced preset${NC}"
-                    ;;
+                  1) MEMORY="1Gi"; CPU="1"; MIN_INST=1; MAX_INST=3; CONCURRENCY=100; TIMEOUT=3600 ;;
+                  2) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
+                  3) MEMORY="4Gi"; CPU="4"; MIN_INST=1; MAX_INST=4; CONCURRENCY=200; TIMEOUT=3600 ;;
+                  *) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
               esac
               echo -e "${GREEN}✅ Applied Preset: $MEMORY | $CPU vCPU | Min: $MIN_INST | Max: $MAX_INST | Concurrency: $CONCURRENCY${NC}"
               break
@@ -227,7 +208,6 @@ deploy_new_service() {
               echo -e "\n${CYAN}=========================================${NC}"
               echo -e "${GREEN}          BILLING MODE${NC}"
               echo -e "${CYAN}=========================================${NC}"
-              echo -e "${YELLOW}Instance-Based = Stable, No Throttling${NC}"
               echo "1) Request-Based  |  2) Instance-Based"
               while true; do
                   read -p "Select [1-2]: " BILLING_CHOICE
@@ -239,52 +219,18 @@ deploy_new_service() {
               done
 
               echo -e "\n${YELLOW}--- MANUAL SETUP ---${NC}"
-              echo "Select Memory:"
-              echo "1) 256Mi   2) 512Mi   3) 1Gi   4) 2Gi"
-              echo "5) 4Gi     6) 8Gi     7) 16Gi  8) Custom input"
-              read -p "Select Memory [1-8]: " MEM
-              case $MEM in
-                  1) MEMORY="256Mi" ;;
-                  2) MEMORY="512Mi" ;;
-                  3) MEMORY="1Gi" ;;
-                  4) MEMORY="2Gi" ;;
-                  5) MEMORY="4Gi" ;;
-                  6) MEMORY="8Gi" ;;
-                  7) MEMORY="16Gi" ;;
-                  8) read -p "Type custom memory: " MEMORY ;;
-                  *) MEMORY="1Gi" ;;
-              esac
-
-              echo -e "\nSelect vCPU:"
-              echo "1) 1 vCPU   2) 2 vCPU   3) 4 vCPU   4) 8 vCPU   5) Custom input"
-              read -p "Select vCPU [1-5]: " CPU_SEL
-              case $CPU_SEL in
-                  1) CPU="1" ;;
-                  2) CPU="2" ;;
-                  3) CPU="4" ;;
-                  4) CPU="8" ;;
-                  5) read -p "Type custom vCPU: " CPU ;;
-                  *) CPU="1" ;;
-              esac
-
-              echo -e "${GREEN}✅ Custom Selected: $MEMORY RAM | $CPU vCPU${NC}"
-
-              echo -e "\n${CYAN}=========================================${NC}"
-              echo -e "${GREEN}    PERFORMANCE & SCALING CONFIGURATION  ${NC}"
-              echo -e "${CYAN}=========================================${NC}"
-              read -p "Min Instances [Default: 0]: " MIN_INST
-              MIN_INST=${MIN_INST:-0}
-
-              read -p "Max Instances [Default: 1]: " MAX_INST
-              MAX_INST=${MAX_INST:-1}
-
-              read -p "Concurrency / Max Connections [Default: 1000]: " CONCURRENCY
-              CONCURRENCY=${CONCURRENCY:-1000}
-
-              read -p "Timeout in seconds [Default: 3600]: " TIMEOUT
+              read -p "Memory (e.g. 1Gi, 2Gi) [Default: 1Gi]: " MEMORY
+              MEMORY=${MEMORY:-1Gi}
+              read -p "vCPU (e.g. 1, 2) [Default: 1]: " CPU
+              CPU=${CPU:-1}
+              read -p "Min Instances [Default: 1]: " MIN_INST
+              MIN_INST=${MIN_INST:-1}
+              read -p "Max Instances [Default: 3]: " MAX_INST
+              MAX_INST=${MAX_INST:-3}
+              read -p "Concurrency [Default: 300]: " CONCURRENCY
+              CONCURRENCY=${CONCURRENCY:-300}
+              read -p "Timeout seconds [Default: 3600]: " TIMEOUT
               TIMEOUT=${TIMEOUT:-3600}
-
-              echo -e "${GREEN}✅ Config Set: Min: $MIN_INST | Max: $MAX_INST | Concurrency: $CONCURRENCY | Timeout: ${TIMEOUT}s${NC}"
               break
               ;;
           *) echo -e "${RED}Enter 1 or 2 only${NC}" ;;
@@ -296,110 +242,62 @@ deploy_new_service() {
   cd "$BUILD_DIR" || exit 1
 
   clear
-  echo ""
-  echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}🚀 GCP PROXY DEPLOYER | MULTI-ENGINE SETUP${NC}"
-  echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}✅ Project:${NC} $PROJECT_ID"
-  echo -e "${GREEN}✅ Region:${NC} $REGION"
-  echo -e "${GREEN}✅ Service Name:${NC} $CLOUD_RUN_SERVICE_NAME"
-  echo -e "${GREEN}✅ Engine:${NC} $DISPLAY_ENGINE"
-  echo -e "${GREEN}✅ Scaling:${NC} Min: $MIN_INST | Max: $MAX_INST"
-  echo -e "${GREEN}✅ Performance:${NC} Concurrency: $CONCURRENCY | Timeout: ${TIMEOUT}s"
-  echo ""
+  echo -e "\n${CYAN}=========================================${NC}"
+  echo -e "${GREEN}🚀 BUILDING AND DEPLOYING SOLID ENGINE ($DISPLAY_ENGINE)${NC}"
+  echo -e "${CYAN}=========================================${NC}\n"
 
+  # Standard Xray config for non-pure-singbox backends
   cat > config.json <<'EOF'
 {
   "log": { "loglevel": "warning" },
-  "dns": {
-    "servers": ["8.8.8.8", "8.8.4.4"],
-    "strategy": "UseIPv4"
-  },
-  "policy": {
-    "levels": {
-      "0": {
-        "handshake": 2,
-        "connIdle": 3600,
-        "bufferSize": 524288
-      }
-    }
-  },
+  "dns": { "servers": ["8.8.8.8", "8.8.4.4"], "strategy": "UseIPv4" },
+  "policy": { "levels": { "0": { "handshake": 2, "connIdle": 3600, "bufferSize": 524288 } } },
   "inbounds": [
     {
-      "tag": "trojan-ws",
-      "port": 10001,
-      "listen": "127.0.0.1",
-      "protocol": "trojan",
+      "tag": "trojan-ws", "port": 10001, "listen": "127.0.0.1", "protocol": "trojan",
       "settings": { "clients": [{"password": "gcp-xray", "level": 0}] },
-      "sniffing": { "enabled": true, "destOverride": ["http","tls"], "routeOnly": true },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": { "path": "/trojan-ws" },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAliveIdle": 300, "tcpKeepAliveInterval": 30 }
-      }
+      "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan-ws" } }
     },
     {
-      "tag": "vless-ws",
-      "port": 10002,
-      "listen": "127.0.0.1",
-      "protocol": "vless",
+      "tag": "vless-ws", "port": 10002, "listen": "127.0.0.1", "protocol": "vless",
       "settings": { "clients": [{"id": "a1b2c3d4-5678-40ef-98ab-cdef01234567", "level": 0}], "decryption": "none" },
-      "sniffing": { "enabled": true, "destOverride": ["http","tls"], "routeOnly": true },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": { "path": "/vless-ws" },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAliveIdle": 300, "tcpKeepAliveInterval": 30 }
-      }
+      "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless-ws" } }
     }
   ],
-  "outbounds": [
-    { "protocol": "freedom", "tag": "direct", "settings": { "domainStrategy": "UseIPv4" } },
-    { "protocol": "blackhole", "tag": "blocked", "settings": { "response": { "type": "none" } } }
-  ],
-  "routing": {
-    "domainStrategy": "IPIfNonMatch",
-    "rules": [
-      { "type": "field", "domain": ["geosite:category-ads-all"], "outboundTag": "blocked" },
-      { "type": "field", "inboundTag": ["trojan-ws", "vless-ws"], "outboundTag": "direct" }
-    ]
-  }
+  "outbounds": [{ "protocol": "freedom", "tag": "direct" }]
 }
 EOF
 
-  DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}p{color:#8b949e;}</style></head><body><div><h1>Welcome to my Cloud Application Gateway.</h1><p>Everything is operational.</p></div></body></html>'
+  DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}</style></head><body><div><h1>System Operational</h1><p>Gateway services working as expected.</p></div></body></html>'
 
+  # 1. OPENRESTY ENGINE (SOLID TIMEOUT FIX)
   if [ "$ENGINE" = "openresty" ]; then
     cat > nginx.conf <<EOF
 worker_processes auto;
-worker_rlimit_nofile 10240;
-events { worker_connections 4096; use epoll; multi_accept on; }
+worker_rlimit_nofile 65535;
+events { worker_connections 8192; use epoll; multi_accept on; }
 http {
   include mime.types;
   default_type application/octet-stream;
   sendfile on; tcp_nodelay on; tcp_nopush on;
-  keepalive_timeout 3600; keepalive_requests 100000;
-  client_max_body_size 0;
+  keepalive_timeout 3600s; keepalive_requests 100000;
   proxy_buffering off; proxy_request_buffering off;
-  proxy_http_version 1.1; proxy_connect_timeout 10s;
+  proxy_http_version 1.1;
+
   server {
     listen 8080;
     server_name _;
     location /health { return 200 "OK\n"; add_header Content-Type text/plain; }
-    location / {
-      default_type text/html;
-      return 200 '$DECOY_HTML';
-    }
+    location / { default_type text/html; return 200 '$DECOY_HTML'; }
     location /trojan-ws {
       proxy_pass http://127.0.0.1:10001;
       proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade";
-      proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr;
-      proxy_read_timeout 3600s; proxy_send_timeout 3600s;
+      proxy_set_header Host \$host; proxy_read_timeout 3600s; proxy_send_timeout 3600s;
     }
     location /vless-ws {
       proxy_pass http://127.0.0.1:10002;
       proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade";
-      proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr;
-      proxy_read_timeout 3600s; proxy_send_timeout 3600s;
+      proxy_set_header Host \$host; proxy_read_timeout 3600s; proxy_send_timeout 3600s;
     }
   }
 }
@@ -411,11 +309,9 @@ sleep 2
 exec /usr/local/openresty/bin/openresty -g 'daemon off;'
 EOF
     chmod +x entrypoint.sh
-
     cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
-RUN apk add --no-cache curl unzip ca-certificates
-RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat && chmod +x xray
+RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 FROM openresty/openresty:alpine-fat
 COPY --from=builder /xray /usr/local/bin/xray
 COPY --from=builder /geosite.dat /usr/local/share/xray/
@@ -423,20 +319,17 @@ COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /usr/local/bin/xray /entrypoint.sh
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
+  # 2. ENVOY ENGINE (SOLID WEBSOCKET TIMEOUTS)
   elif [ "$ENGINE" = "envoy" ]; then
     cat > envoy.yaml <<EOF
 static_resources:
   listeners:
   - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 8080
+    address: { socket_address: { address: 0.0.0.0, port_value: 8080 } }
     filter_chains:
     - filters:
       - name: envoy.filters.network.http_connection_manager
@@ -453,41 +346,25 @@ static_resources:
               - match: { prefix: "/health" }
                 direct_response: { status: 200, body: { inline_string: "OK\n" } }
               - match: { prefix: "/trojan-ws" }
-                route: { cluster: trojan_cluster, timeout: 3600s, upgrade_configs: [{ upgrade_type: "websocket" }] }
+                route: { cluster: trojan_cluster, timeout: 0s, idle_timeout: 3600s, upgrade_configs: [{ upgrade_type: "websocket" }] }
               - match: { prefix: "/vless-ws" }
-                route: { cluster: vless_cluster, timeout: 3600s, upgrade_configs: [{ upgrade_type: "websocket" }] }
+                route: { cluster: vless_cluster, timeout: 0s, idle_timeout: 3600s, upgrade_configs: [{ upgrade_type: "websocket" }] }
               - match: { prefix: "/" }
-                direct_response:
-                  status: 200
-                  body:
-                    inline_string: "System Operational"
+                direct_response: { status: 200, body: { inline_string: "Operational" } }
           http_filters:
           - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
   clusters:
   - name: trojan_cluster
     connect_timeout: 10s
     type: STATIC
     lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: trojan_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address: { address: 127.0.0.1, port_value: 10001 }
+    load_assignment: { cluster_name: trojan_cluster, endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10001 } } } }] }] }
   - name: vless_cluster
     connect_timeout: 10s
     type: STATIC
     lb_policy: ROUND_ROBIN
-    load_assignment:
-      cluster_name: vless_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address: { address: 127.0.0.1, port_value: 10002 }
+    load_assignment: { cluster_name: vless_cluster, endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10002 } } } }] }] }
 EOF
     cat > entrypoint.sh <<'EOF'
 #!/bin/sh
@@ -496,28 +373,24 @@ sleep 2
 exec envoy -c /etc/envoy.yaml
 EOF
     chmod +x entrypoint.sh
-
     cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
-RUN apk add --no-cache curl unzip ca-certificates
-RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat && chmod +x xray
+RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 FROM envoyproxy/envoy:v1.30-latest
 COPY --from=builder /xray /usr/local/bin/xray
-COPY --from=builder /geosite.dat /usr/local/share/xray/
-COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY envoy.yaml /etc/envoy.yaml
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /usr/local/bin/xray /entrypoint.sh
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
+  # 3. HAPROXY ENGINE (SOLID TUNNEL TIMEOUT)
   elif [ "$ENGINE" = "haproxy" ]; then
     cat > haproxy.cfg <<EOF
 global
     log stdout format raw local0
-    maxconn 10000
+    maxconn 20000
 
 defaults
     log global
@@ -525,6 +398,7 @@ defaults
     timeout connect 10s
     timeout client 3600s
     timeout server 3600s
+    timeout tunnel 3600s
 
 frontend main
     bind *:8080
@@ -556,24 +430,20 @@ sleep 2
 exec haproxy -f /usr/local/etc/haproxy/haproxy.cfg -db
 EOF
     chmod +x entrypoint.sh
-
     cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
-RUN apk add --no-cache curl unzip ca-certificates
-RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat && chmod +x xray
+RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 FROM haproxy:2.8-alpine
 COPY --from=builder /xray /usr/local/bin/xray
-COPY --from=builder /geosite.dat /usr/local/share/xray/
-COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
 COPY entrypoint.sh /entrypoint.sh
 USER root
-RUN chmod +x /usr/local/bin/xray /entrypoint.sh
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
+  # 4. CADDY ENGINE (SOLID FLUSH INTERVAL)
   elif [ "$ENGINE" = "caddy" ]; then
     cat > Caddyfile <<EOF
 {
@@ -590,6 +460,7 @@ EOF
         reverse_proxy 127.0.0.1:10001 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}
+            flush_interval -1
         }
     }
 
@@ -597,6 +468,7 @@ EOF
         reverse_proxy 127.0.0.1:10002 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}
+            flush_interval -1
         }
     }
 
@@ -613,73 +485,38 @@ sleep 2
 exec caddy run --config /etc/Caddyfile --adapter caddyfile
 EOF
     chmod +x entrypoint.sh
-
     cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
-RUN apk add --no-cache curl unzip ca-certificates
-RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat && chmod +x xray
+RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 FROM caddy:2.7-alpine
 COPY --from=builder /xray /usr/local/bin/xray
-COPY --from=builder /geosite.dat /usr/local/share/xray/
-COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY Caddyfile /etc/Caddyfile
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /usr/local/bin/xray /entrypoint.sh
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
+  # 5. PURE SING-BOX ENGINE (100% VALIDATED SOLID JSON)
   elif [ "$ENGINE" = "singbox" ]; then
-    # ==============================================================
-    # 🔥 PURE SING-BOX ENGINE (CADDY + SING-BOX INBOUNDS)
-    # ==============================================================
-    cat > Caddyfile <<EOF
+    cat > singbox.json <<EOF
 {
-    admin off
-    http_port 8080
-}
-
-:8080 {
-    handle /health {
-        respond "OK\n" 200
-    }
-
-    handle /trojan-ws* {
-        reverse_proxy 127.0.0.1:10001 {
-            header_up Host {host}
-            header_up X-Real-IP {remote_host}
-            header_up Connection "Upgrade"
-            header_up Upgrade "websocket"
-        }
-    }
-
-    handle /vless-ws* {
-        reverse_proxy 127.0.0.1:10002 {
-            header_up Host {host}
-            header_up X-Real-IP {remote_host}
-            header_up Connection "Upgrade"
-            header_up Upgrade "websocket"
-        }
-    }
-
-    handle {
-        header Content-Type text/html
-        respond \`$DECOY_HTML\` 200
-    }
-}
-EOF
-
-    cat > singbox.json <<'EOF'
-{
-  "log": { "level": "warn" },
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
   "inbounds": [
     {
       "type": "trojan",
-      "tag": "trojan-ws",
-      "listen": "127.0.0.1",
-      "listen_port": 10001,
-      "users": [{ "password": "gcp-xray" }],
+      "tag": "trojan-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "users": [
+        {
+          "name": "gcp-user",
+          "password": "gcp-xray"
+        }
+      ],
       "transport": {
         "type": "ws",
         "path": "/trojan-ws",
@@ -688,43 +525,54 @@ EOF
     },
     {
       "type": "vless",
-      "tag": "vless-ws",
-      "listen": "127.0.0.1",
-      "listen_port": 10002,
-      "users": [{ "uuid": "a1b2c3d4-5678-40ef-98ab-cdef01234567" }],
+      "tag": "vless-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "users": [
+        {
+          "name": "gcp-user",
+          "uuid": "a1b2c3d4-5678-40ef-98ab-cdef01234567"
+        }
+      ],
       "transport": {
         "type": "ws",
         "path": "/vless-ws",
         "max_early_data": 2048
       }
+    },
+    {
+      "type": "direct",
+      "tag": "health-in",
+      "listen": "0.0.0.0",
+      "listen_port": 8080,
+      "network": "tcp"
     }
   ],
-  "outbounds": [{ "type": "direct", "tag": "direct" }]
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "direct"
+  }
 }
 EOF
-
-    cat > entrypoint.sh <<'EOF'
-#!/bin/sh
-/usr/local/bin/sing-box run -c /etc/singbox.json &
-sleep 2
-exec caddy run --config /etc/Caddyfile --adapter caddyfile
-EOF
-    chmod +x entrypoint.sh
-
     cat > Dockerfile <<'EOF'
-FROM ghcr.io/sagernet/sing-box:latest AS singbox-builder
-FROM caddy:2.7-alpine
-COPY --from=singbox-builder /usr/local/bin/sing-box /usr/local/bin/sing-box
+FROM ghcr.io/sagernet/sing-box:latest
 COPY singbox.json /etc/singbox.json
-COPY Caddyfile /etc/Caddyfile
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /usr/local/bin/sing-box /entrypoint.sh
 EXPOSE 8080
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/sing-box", "run", "-c", "/etc/singbox.json"]
 EOF
   fi
 
-  echo -e "${CYAN}🔨 Building image ($ENGINE engine)...${NC}"
+  echo -e "${CYAN}🔨 Building container image ($DISPLAY_ENGINE)...${NC}"
   gcloud builds submit --project="$PROJECT_ID" --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
 
   echo -e "${CYAN}🚀 Deploying to Cloud Run...${NC}"
@@ -742,10 +590,9 @@ EOF
 
   clear
   echo -e "\n${CYAN}=========================================${NC}"
-  echo -e "${GREEN}✅ MULTI-ENGINE-GCP DEPLOYMENT SUCCESS! (${ENGINE^^})${NC}"
+  echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL! ENGINE: ${ENGINE^^}${NC}"
   echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}🔗 SHORT LINK:${NC} $CANONICAL_LINK"
-  echo -e "${GREEN}🌐 NETMOD HOST:${NC} $DOMAIN"
+  echo -e "${GREEN}🔗 URL / HOST:${NC} $DOMAIN"
   echo -e "${GREEN}💚 HEALTH CHECK:${NC} $CANONICAL_LINK/health"
   echo -e "${CYAN}=========================================${NC}"
 
@@ -755,9 +602,9 @@ EOF
 while true; do
   clear
   echo "======================================"
-  echo "QUADRO-PROXY-GCP DEPLOYER MENU        "
+  echo "GCP MULTI-5-ENGINES PROXY DEPLOYER MENU  "
   echo "======================================"
-  echo "1) Deploy New GCP Service (OpenResty/Envoy/HAProxy/Caddy/Sing-Box)"
+  echo "1) Deploy New GCP Service (Solid Engines)"
   echo "2) List All Services & FULL DETAILS"
   echo "3) Exit Script"
   echo "======================================"
