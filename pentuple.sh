@@ -239,7 +239,7 @@ deploy_new_service() {
     echo -e "${GREEN}🚀 BUILDING AND DEPLOYING SOLID ENGINE ($DISPLAY_ENGINE)${NC}"
     echo -e "${CYAN}=========================================${NC}\n"
 
-    # Standard Xray config for non-pure-singbox backends
+    # Standard Xray config (Direct Outbound Routing Fix - No Blocking)
     cat > config.json <<'EOF'
 {
   "log": { "loglevel": "warning" },
@@ -284,11 +284,9 @@ deploy_new_service() {
 }
 EOF
 
-    DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}</style></head><body><div><h1>System Operational</h1><p>Gateway services working as expected.</p></div></body></html>'
-
     # 1. OPENRESTY ENGINE
     if [ "$ENGINE" = "openresty" ]; then
-        cat > nginx.conf <<EOF
+        cat > nginx.conf <<'EOF'
 worker_processes auto;
 worker_rlimit_nofile 65535;
 events {
@@ -319,23 +317,23 @@ http {
 
         location / {
             default_type text/html;
-            return 200 '$DECOY_HTML';
+            return 200 '<!DOCTYPE html><html><head><title>System Status</title></head><body><h1>System Operational</h1></body></html>';
         }
 
         location /trojan-ws {
             proxy_pass http://127.0.0.1:10001;
-            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
-            proxy_set_header Host \$host;
+            proxy_set_header Host $host;
             proxy_read_timeout 3600s;
             proxy_send_timeout 3600s;
         }
 
         location /vless-ws {
             proxy_pass http://127.0.0.1:10002;
-            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
-            proxy_set_header Host \$host;
+            proxy_set_header Host $host;
             proxy_read_timeout 3600s;
             proxy_send_timeout 3600s;
         }
@@ -361,6 +359,7 @@ COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/xray
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
@@ -368,7 +367,7 @@ EOF
 
     # 2. ENVOY ENGINE
     elif [ "$ENGINE" = "envoy" ]; then
-        cat > envoy.yaml <<EOF
+        cat > envoy.yaml <<'EOF'
 static_resources:
   listeners:
   - name: listener_0
@@ -427,10 +426,12 @@ FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 
 FROM envoyproxy/envoy:v1.30-latest
+USER root
 COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY envoy.yaml /etc/envoy.yaml
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/xray
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
@@ -438,7 +439,7 @@ EOF
 
     # 3. HAPROXY ENGINE
     elif [ "$ENGINE" = "haproxy" ]; then
-        cat > haproxy.cfg <<EOF
+        cat > haproxy.cfg <<'EOF'
 global
     log stdout format raw local0
     maxconn 20000
@@ -452,7 +453,7 @@ defaults
     timeout tunnel 3600s
 
 frontend main
-    bind *:8080
+    bind 0.0.0.0:8080
     acl is_health path /health
     acl is_trojan path_beg /trojan-ws
     acl is_vless path_beg /vless-ws
@@ -466,7 +467,7 @@ backend health_backend
     http-request return status 200 content-type "text/plain" string "OK\n"
 
 backend default_backend
-    http-request return status 200 content-type "text/html" string '$DECOY_HTML'
+    http-request return status 200 content-type "text/html" string "<!DOCTYPE html><html><head><title>System Status</title></head><body><h1>System Operational</h1></body></html>"
 
 backend trojan_backend
     server xray1 127.0.0.1:10001
@@ -487,11 +488,12 @@ FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
 
 FROM haproxy:2.8-alpine
+USER root
 COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
 COPY entrypoint.sh /entrypoint.sh
-USER root
+RUN chmod +x /entrypoint.sh /usr/local/bin/xray
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
@@ -499,7 +501,7 @@ EOF
 
     # 4. CADDY ENGINE
     elif [ "$ENGINE" = "caddy" ]; then
-        cat > Caddyfile <<EOF
+        cat > Caddyfile <<'EOF'
 {
     admin off
     http_port 8080
@@ -527,8 +529,7 @@ EOF
     }
 
     handle {
-        header Content-Type text/html
-        respond \`$DECOY_HTML\` 200
+        respond "<!DOCTYPE html><html><body><h1>System Operational</h1></body></html>" 200
     }
 }
 EOF
@@ -549,14 +550,15 @@ COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY Caddyfile /etc/Caddyfile
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/xray
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-    # 5. PURE SING-BOX ENGINE (FIXED SINGLE INBOUND PORT 8080)
+    # 5. PURE SING-BOX ENGINE
     elif [ "$ENGINE" = "singbox" ]; then
-        cat > singbox.json <<EOF
+        cat > singbox.json <<'EOF'
 {
   "log": {
     "level": "warn",
@@ -585,10 +587,6 @@ EOF
     {
       "type": "direct",
       "tag": "direct"
-    },
-    {
-      "type": "block",
-      "tag": "block"
     }
   ],
   "route": {
@@ -635,7 +633,7 @@ EOF
 while true; do
     clear
     echo "======================================"
-    echo "    PENTA-PROXY GCP DEPLOYER MENU "
+    echo "GCP MULTI-5-ENGINES PROXY DEPLOYER MENU "
     echo "======================================"
     echo "1) Deploy New GCP Service (Fixed & Solid)"
     echo "2) List All Services & FULL DETAILS"
