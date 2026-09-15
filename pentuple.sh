@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # =========================================================
-# ðŸš€ GCP MULTI-ENGINE PROXY DEPLOYER (ULTIMATE FIXED EDITION)
-# âœ… ENGINES: OPENRESTY | ENVOY | HAPROXY | CADDY | SING-BOX
+# 🚀 GCP MULTI-ENGINE PROXY DEPLOYER (ULTIMATE FIXED EDITION)
+# ✅ ENGINES: OPENRESTY | ENVOY | HAPROXY | CADDY | SING-BOX
 # =========================================================
 
 GREEN='\033[1;32m'
@@ -16,302 +16,344 @@ NC='\033[0m'
 # AUTO INSTALL JQ IF MISSING
 # ==============================================
 if ! command -v jq &> /dev/null; then
-  echo -e "\n${YELLOW}âš ï¸ Installing required tool: jq...${NC}"
-  sudo apt update -qq && sudo apt install -y -qq jq || {
-    echo -e "${RED}âŒ Failed to install jq!${NC}"
-    exit 1
-  }
-  echo -e "${GREEN}âœ… jq installed successfully!${NC}"
+    echo -e "\n${YELLOW}⚠️ Installing required tool: jq...${NC}"
+    sudo apt update -qq && sudo apt install -y -qq jq || { echo -e "${RED}❌ Failed to install jq!${NC}"; exit 1; }
+    echo -e "${GREEN}✅ jq installed successfully!${NC}"
 fi
 
 # ==============================================
 # LIST SERVICES
 # ==============================================
 list_deployed_services() {
-  echo -e "\n======================================"
-  echo -e "${CYAN}ðŸ“‹ ALL DEPLOYED GCP SERVICES - FULL DETAILS${NC}"
-  echo -e "======================================"
-  PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
-  echo "Project: $PROJECT_ID"
-  echo ""
+    echo -e "\n======================================"
+    echo -e "${CYAN}📋 ALL DEPLOYED GCP SERVICES - FULL DETAILS${NC}"
+    echo -e "======================================"
+    PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
+    echo "Project: $PROJECT_ID"
+    echo ""
 
-  declare -A REGION_NAMES=(
-    ["us-central1"]="Iowa, United States ðŸ‡ºðŸ‡¸"
-    ["us-east1"]="South Carolina, United States ðŸ‡ºðŸ‡¸"
-    ["us-east4"]="N. Virginia, United States ðŸ‡ºðŸ‡¸"
-    ["us-west1"]="Oregon, United States ðŸ‡ºðŸ‡¸"
-    ["asia-east1"]="Taiwan ðŸ‡¹ðŸ‡¼"
-    ["asia-southeast1"]="Singapore ðŸ‡¸ðŸ‡¬"
-    ["asia-northeast1"]="Tokyo, Japan ðŸ‡¯ðŸ‡µ"
-    ["asia-northeast3"]="Seoul, South Korea ðŸ‡°ðŸ‡·"
-    ["europe-west1"]="Belgium ðŸ‡§ðŸ‡ª"
-    ["europe-west4"]="Netherlands ðŸ‡³ðŸ‡±"
-    ["europe-west9"]="Paris, France ðŸ‡«ðŸ‡·"
-    ["asia-south1"]="Mumbai, India ðŸ‡®ðŸ‡³"
-  )
+    declare -A REGION_NAMES=(
+        ["us-central1"]="Iowa, United States 🇺🇸"
+        ["us-east1"]="South Carolina, United States 🇺🇸"
+        ["us-east4"]="N. Virginia, United States 🇺🇸"
+        ["us-west1"]="Oregon, United States 🇺🇸"
+        ["asia-east1"]="Taiwan 🇹🇼"
+        ["asia-southeast1"]="Singapore 🇸🇬"
+        ["asia-northeast1"]="Tokyo, Japan 🇯🇵"
+        ["asia-northeast3"]="Seoul, South Korea 🇰🇷"
+        ["europe-west1"]="Belgium 🇧🇪"
+        ["europe-west4"]="Netherlands 🇳🇱"
+        ["europe-west9"]="Paris, France 🇫🇷"
+        ["asia-south1"]="Mumbai, India 🇮🇳"
+    )
 
-  SERVICES=$(gcloud run services list \
-    --format="value(metadata.name, status.url, region, metadata.creationTimestamp.date(%Y-%m-%d))" \
-    --project="$PROJECT_ID" 2>/dev/null)
+    SERVICES=$(gcloud run services list \
+        --format="value(metadata.name, status.url, region, metadata.creationTimestamp.date(%Y-%m-%d))" \
+        --project="$PROJECT_ID" 2>/dev/null)
 
-  if [ -z "$SERVICES" ]; then
-    echo -e "${RED}âŒ No services found.${NC}"
-  else
-    local COUNT=1
-    while IFS=$'\t' read -r NAME URL REGION CREATED; do
-      [ -z "$NAME" ] && continue
-      FULL_REGION="${REGION_NAMES[$REGION]:-$REGION}"
+    if [ -z "$SERVICES" ]; then
+        echo -e "${RED}❌ No services found.${NC}"
+    else
+        local COUNT=1
+        while IFS=$'\t' read -r NAME URL REGION CREATED; do
+            [ -z "$NAME" ] && continue
+            FULL_REGION="${REGION_NAMES[$REGION]:-$REGION}"
+            
+            DETAILS=$(gcloud run services describe "$NAME" --region "$REGION" --project="$PROJECT_ID" --format=json 2>/dev/null)
+            MEMORY=$(echo "$DETAILS" | jq -r '.spec.template.spec.containers[0].resources.limits.memory // "1Gi"')
+            CPU=$(echo "$DETAILS" | jq -r '.spec.template.spec.containers[0].resources.limits.cpu // "1"')
+            BILLING=$(echo "$DETAILS" | jq -r '.spec.template.spec.billingMode // "Instance Based"' | sed 's/_/ /g;s/^./\U&/')
+            MIN_INST=$(echo "$DETAILS" | jq -r '.spec.template.spec.minInstances // "0"')
+            MAX_INST=$(echo "$DETAILS" | jq -r '.spec.template.spec.maxInstances // "1"')
+            CONCURRENCY=$(echo "$DETAILS" | jq -r '.spec.template.spec.containerConcurrency // "300"')
+            TIMEOUT=$(echo "$DETAILS" | jq -r '.spec.template.spec.timeoutSeconds // "300"')
 
-      DETAILS=$(gcloud run services describe "$NAME" --region "$REGION" --project="$PROJECT_ID" --format=json 2>/dev/null)
-
-      MEMORY=$(echo "$DETAILS" | jq -r '.spec.template.spec.containers[0].resources.limits.memory // "1Gi"')
-      CPU=$(echo "$DETAILS" | jq -r '.spec.template.spec.containers[0].resources.limits.cpu // "1"')
-      BILLING=$(echo "$DETAILS" | jq -r '.spec.template.spec.billingMode // "Instance Based"' | sed 's/_/ /g;s/^./\U&/')
-      MIN_INST=$(echo "$DETAILS" | jq -r '.spec.template.spec.minInstances // "0"')
-      MAX_INST=$(echo "$DETAILS" | jq -r '.spec.template.spec.maxInstances // "1"')
-      CONCURRENCY=$(echo "$DETAILS" | jq -r '.spec.template.spec.containerConcurrency // "300"')
-      TIMEOUT=$(echo "$DETAILS" | jq -r '.spec.template.spec.timeoutSeconds // "300"')
-
-      echo -e "${GREEN}=== SERVICE #$COUNT ===${NC}"
-      echo "ðŸ”¹ Name:         $NAME"
-      echo "ðŸ”¹ URL:          $URL"
-      echo "ðŸ”¹ Region:       $REGION â†’ $FULL_REGION"
-      echo "ðŸ”¹ Created:      $CREATED"
-      echo "ðŸ”¹ Resources:    $MEMORY RAM | $CPU vCPU"
-      echo "ðŸ”¹ Billing:      $BILLING"
-      echo "ðŸ”¹ Instances:    Min $MIN_INST / Max $MAX_INST"
-      echo "ðŸ”¹ Connections:  Max $CONCURRENCY"
-      echo "ðŸ”¹ Timeout:      ${TIMEOUT}s"
-      echo ""
-      ((COUNT++))
-    done <<< "$SERVICES"
-  fi
-  
-  echo -e "\n======================================"
-  read -p "Press [Enter] to return..."
+            echo -e "${GREEN}=== SERVICE #$COUNT ===${NC}"
+            echo "🔹 Name: $NAME"
+            echo "🔹 URL: $URL"
+            echo "🔹 Region: $REGION → $FULL_REGION"
+            echo "🔹 Created: $CREATED"
+            echo "🔹 Resources: $MEMORY RAM | $CPU vCPU"
+            echo "🔹 Billing: $BILLING"
+            echo "🔹 Instances: Min $MIN_INST / Max $MAX_INST"
+            echo "🔹 Connections: Max $CONCURRENCY"
+            echo "🔹 Timeout: ${TIMEOUT}s"
+            echo ""
+            ((COUNT++))
+        done <<< "$SERVICES"
+    fi
+    echo -e "\n======================================"
+    read -p "Press [Enter] to return..."
 }
 
 # ==============================================
 # REGION SELECTOR
 # ==============================================
 select_region() {
-  echo -e "\n=== GCP CLOUD RUN REGION SELECTION ==="
-  echo "--- North America ---"
-  echo "1) us-central1      (Iowa, US ðŸ‡ºðŸ‡¸)"
-  echo "2) us-east1         (South Carolina, US ðŸ‡ºðŸ‡¸)"
-  echo "3) us-east4         (N. Virginia, US ðŸ‡ºðŸ‡¸)"
-  echo "4) us-west1         (Oregon, US ðŸ‡ºðŸ‡¸)"
-  echo ""
-  echo "--- Asia Pacific ---"
-  echo "5) asia-east1       (Taiwan ðŸ‡¹ðŸ‡¼ â€” RECOMMENDED!)"
-  echo "6) asia-southeast1  (Singapore ðŸ‡¸ðŸ‡¬)"
-  echo "7) asia-northeast1   (Tokyo, Japan ðŸ‡¯ðŸ‡µ)"
-  echo "8) asia-northeast3   (Seoul, South Korea ðŸ‡°ðŸ‡·)"
-  echo "9) asia-south1      (Mumbai, India ðŸ‡®ðŸ‡³)"
-  echo ""
-  echo "--- Europe ---"
-  echo "10) europe-west1     (Belgium ðŸ‡§ðŸ‡ª)"
-  echo "11) europe-west4    (Netherlands ðŸ‡³ðŸ‡±)"
-  echo "12) europe-west9    (Paris, France ðŸ‡«ðŸ‡·)"
-  echo ""
-  echo "0) Enter custom region code"
-  echo ""
-
-  read -p "Enter region number: " REGION_NUM
-
-  case $REGION_NUM in
-    1) REGION="us-central1" ;;
-    2) REGION="us-east1" ;;
-    3) REGION="us-east4" ;;
-    4) REGION="us-west1" ;;
-    5) REGION="asia-east1" ;;
-    6) REGION="asia-southeast1" ;;
-    7) REGION="asia-northeast1" ;;
-    8) REGION="asia-northeast3" ;;
-    9) REGION="asia-south1" ;;
-    10) REGION="europe-west1" ;;
-    11) REGION="europe-west4" ;;
-    12) REGION="europe-west9" ;;
-    0) read -p "Type full region code: " REGION ;;
-    *) echo -e "${YELLOW}âš ï¸ Invalid! Using us-central1${NC}"; REGION="us-central1" ;;
-  esac
-
-  echo -e "${GREEN}âœ… Selected Region:${NC} $REGION"
+    echo -e "\n=== GCP CLOUD RUN REGION SELECTION ==="
+    echo "--- North America ---"
+    echo "1) us-central1 (Iowa, US 🇺🇸)"
+    echo "2) us-east1 (South Carolina, US 🇺🇸)"
+    echo "3) us-east4 (N. Virginia, US 🇺🇸)"
+    echo "4) us-west1 (Oregon, US 🇺🇸)"
+    echo ""
+    echo "--- Asia Pacific ---"
+    echo "5) asia-east1 (Taiwan 🇹🇼 — RECOMMENDED!)"
+    echo "6) asia-southeast1 (Singapore 🇸🇬)"
+    echo "7) asia-northeast1 (Tokyo, Japan 🇯🇵)"
+    echo "8) asia-northeast3 (Seoul, South Korea 🇰🇷)"
+    echo "9) asia-south1 (Mumbai, India 🇮🇳)"
+    echo ""
+    echo "--- Europe ---"
+    echo "10) europe-west1 (Belgium 🇧🇪)"
+    echo "11) europe-west4 (Netherlands 🇳🇱)"
+    echo "12) europe-west9 (Paris, France 🇫🇷)"
+    echo ""
+    echo "0) Enter custom region code"
+    echo ""
+    read -p "Enter region number: " REGION_NUM
+    case $REGION_NUM in
+        1) REGION="us-central1" ;;
+        2) REGION="us-east1" ;;
+        3) REGION="us-east4" ;;
+        4) REGION="us-west1" ;;
+        5) REGION="asia-east1" ;;
+        6) REGION="asia-southeast1" ;;
+        7) REGION="asia-northeast1" ;;
+        8) REGION="asia-northeast3" ;;
+        9) REGION="asia-south1" ;;
+        10) REGION="europe-west1" ;;
+        11) REGION="europe-west4" ;;
+        12) REGION="europe-west9" ;;
+        0) read -p "Type full region code: " REGION ;;
+        *) echo -e "${YELLOW}⚠️ Invalid! Using us-central1${NC}"; REGION="us-central1" ;;
+    esac
+    echo -e "${GREEN}✅ Selected Region:${NC} $REGION"
 }
 
 # ==============================================
 # DEPLOYMENT FUNCTION
 # ==============================================
 deploy_new_service() {
-  select_region
+    select_region
+    PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
+    if [ -z "$PROJECT_ID" ]; then
+        echo -e "${RED}❌ No project set! Run: gcloud config set project YOUR_ID${NC}"
+        read -p "Press [Enter] to return..."
+        return
+    fi
 
-  PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
-  if [ -z "$PROJECT_ID" ]; then
-      echo -e "${RED}âŒ No project set! Run: gcloud config set project YOUR_ID${NC}"
-      read -p "Press [Enter] to return..."
-      return
-  fi
+    gcloud services enable run.googleapis.com cloudbuild.googleapis.com --project="$PROJECT_ID" --quiet
 
-  gcloud services enable run.googleapis.com cloudbuild.googleapis.com --project="$PROJECT_ID" --quiet
+    echo -e "\n${CYAN}=========================================${NC}"
+    echo -e "${GREEN}          CHOOSE PROXY ENGINE${NC}"
+    echo -e "${CYAN}=========================================${NC}"
+    echo "1) OpenResty - [Solid & Reliable / Nginx-Based] ✅"
+    echo "2) Envoy Proxy - [High Performance / Cloud Native]"
+    echo "3) HAProxy - [Ultra Low Latency / Ultra Stable]"
+    echo "4) Caddy Proxy - [Modern / Ultra Fast / Zero-Buffer WS]"
+    echo "5) Sing-Box Engine - [100% Pure Core / Port 8080 Fix] ⚡"
+    
+    while true; do
+        read -p "Select Engine [1-5]: " ENGINE_CHOICE
+        case $ENGINE_CHOICE in
+            1) ENGINE="openresty"; DISPLAY_ENGINE="OpenResty"; echo -e "${GREEN}✅ Selected: OpenResty${NC}"; break ;;
+            2) ENGINE="envoy"; DISPLAY_ENGINE="Envoy Proxy"; echo -e "${GREEN}✅ Selected: Envoy Proxy${NC}"; break ;;
+            3) ENGINE="haproxy"; DISPLAY_ENGINE="HAProxy"; echo -e "${GREEN}✅ Selected: HAProxy${NC}"; break ;;
+            4) ENGINE="caddy"; DISPLAY_ENGINE="Caddy Proxy"; echo -e "${GREEN}✅ Selected: Caddy Proxy${NC}"; break ;;
+            5) ENGINE="singbox"; DISPLAY_ENGINE="Sing-Box Pure Engine"; echo -e "${GREEN}✅ Selected: Sing-Box Pure Engine${NC}"; break ;;
+            *) echo -e "${RED}Enter 1, 2, 3, 4, or 5 only${NC}" ;;
+        esac
+    done
 
-  echo -e "\n${CYAN}=========================================${NC}"
-  echo -e "${GREEN}          CHOOSE PROXY ENGINE${NC}"
-  echo -e "${CYAN}=========================================${NC}"
-  echo "1) OpenResty          - [Solid & Reliable / Nginx-Based] âœ…"
-  echo "2) Envoy Proxy        - [High Performance / Cloud Native]"
-  echo "3) HAProxy            - [Ultra Low Latency / Ultra Stable]"
-  echo "4) Caddy Proxy        - [Modern / Ultra Fast / Zero-Buffer WS]"
-  echo "5) Sing-Box Engine    - [100% Pure Core / Port 8080 Fix] âš¡"
-  while true; do
-      read -p "Select Engine [1-5]: " ENGINE_CHOICE
-      case $ENGINE_CHOICE in
-          1) ENGINE="openresty"; DISPLAY_ENGINE="OpenResty"; echo -e "${GREEN}âœ… Selected: OpenResty${NC}"; break ;;
-          2) ENGINE="envoy"; DISPLAY_ENGINE="Envoy Proxy"; echo -e "${GREEN}âœ… Selected: Envoy Proxy${NC}"; break ;;
-          3) ENGINE="haproxy"; DISPLAY_ENGINE="HAProxy"; echo -e "${GREEN}âœ… Selected: HAProxy${NC}"; break ;;
-          4) ENGINE="caddy"; DISPLAY_ENGINE="Caddy Proxy"; echo -e "${GREEN}âœ… Selected: Caddy Proxy${NC}"; break ;;
-          5) ENGINE="singbox"; DISPLAY_ENGINE="Sing-Box Pure Engine"; echo -e "${GREEN}âœ… Selected: Sing-Box Pure Engine${NC}"; break ;;
-          *) echo -e "${RED}Enter 1, 2, 3, 4, or 5 only${NC}" ;;
-      esac
-  done
+    RAND=$(openssl rand -hex 3)
+    CLOUD_RUN_SERVICE_NAME="gcp-proxy-${ENGINE}-$RAND"
 
-  RAND=$(openssl rand -hex 3)
-  CLOUD_RUN_SERVICE_NAME="gcp-proxy-${ENGINE}-$RAND"
+    echo -e "\n${CYAN}=========================================${NC}"
+    echo -e "${GREEN}         RESOURCE CONFIG MODE${NC}"
+    echo -e "${CYAN}=========================================${NC}"
+    echo -e "${GREEN}1) AUTO PRESETS | Recommended (Instance-Based)${NC}"
+    echo -e "${YELLOW}2) MANUAL SETUP | Custom Memory & vCPU${NC}"
+    
+    while true; do
+        read -p "Select Mode [1-2]: " RES_MODE
+        case $RES_MODE in
+            1)
+                echo -e "\n${CYAN}--- AUTO PRESETS ---${NC}"
+                echo "1) Basic: 1Gi RAM + 1 vCPU (Min: 1, Max: 3, Concurrency: 100)"
+                echo "2) Balanced: 2Gi RAM + 2 vCPU (Min: 1, Max: 5, Concurrency: 130) ✅"
+                echo "3) Turbo: 4Gi RAM + 4 vCPU (Min: 1, Max: 4, Concurrency: 200)"
+                read -p "Choose preset [1-3]: " AUTO_CHOICE
+                
+                BILLING_MODE="instance"
+                BILLING_FLAG="--no-cpu-throttling"
+                
+                case $AUTO_CHOICE in
+                    1) MEMORY="1Gi"; CPU="1"; MIN_INST=1; MAX_INST=3; CONCURRENCY=100; TIMEOUT=3600 ;;
+                    2) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
+                    3) MEMORY="4Gi"; CPU="4"; MIN_INST=1; MAX_INST=4; CONCURRENCY=200; TIMEOUT=3600 ;;
+                    *) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
+                esac
+                echo -e "${GREEN}✅ Applied Preset: $MEMORY | $CPU vCPU | Min: $MIN_INST | Max: $MAX_INST | Concurrency: $CONCURRENCY${NC}"
+                break
+                ;;
+            2)
+                echo -e "\n${CYAN}=========================================${NC}"
+                echo -e "${GREEN}             BILLING MODE${NC}"
+                echo -e "${CYAN}=========================================${NC}"
+                echo "1) Request-Based | 2) Instance-Based"
+                while true; do
+                    read -p "Select [1-2]: " BILLING_CHOICE
+                    case $BILLING_CHOICE in
+                        1) BILLING_MODE="request"; BILLING_FLAG="--cpu-throttling"; break ;;
+                        2) BILLING_MODE="instance"; BILLING_FLAG="--no-cpu-throttling"; break ;;
+                        *) echo -e "${RED}Enter 1 or 2 only${NC}" ;;
+                    esac
+                done
 
-  echo -e "\n${CYAN}=========================================${NC}"
-  echo -e "${GREEN}      RESOURCE CONFIG MODE${NC}"
-  echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}1) AUTO PRESETS  |  Recommended (Instance-Based)${NC}"
-  echo -e "${YELLOW}2) MANUAL SETUP  |  Custom Memory & vCPU${NC}"
-  while true; do
-      read -p "Select Mode [1-2]: " RES_MODE
-      case $RES_MODE in
-          1)
-              echo -e "\n${CYAN}--- AUTO PRESETS ---${NC}"
-              echo "1) Basic:    1Gi RAM + 1 vCPU (Min: 1, Max: 3, Concurrency: 100)"
-              echo "2) Balanced: 2Gi RAM + 2 vCPU (Min: 1, Max: 5, Concurrency: 130) âœ…"
-              echo "3) Turbo:    4Gi RAM + 4 vCPU (Min: 1, Max: 4, Concurrency: 200)"
-              read -p "Choose preset [1-3]: " AUTO_CHOICE
-              
-              BILLING_MODE="instance"
-              BILLING_FLAG="--no-cpu-throttling"
+                echo -e "\n${YELLOW}--- MANUAL SETUP ---${NC}"
+                read -p "Memory (e.g. 1Gi, 2Gi) [Default: 1Gi]: " MEMORY
+                MEMORY=${MEMORY:-1Gi}
+                read -p "vCPU (e.g. 1, 2) [Default: 1]: " CPU
+                CPU=${CPU:-1}
+                read -p "Min Instances [Default: 1]: " MIN_INST
+                MIN_INST=${MIN_INST:-1}
+                read -p "Max Instances [Default: 3]: " MAX_INST
+                MAX_INST=${MAX_INST:-3}
+                read -p "Concurrency [Default: 300]: " CONCURRENCY
+                CONCURRENCY=${CONCURRENCY:-300}
+                read -p "Timeout seconds [Default: 3600]: " TIMEOUT
+                TIMEOUT=${TIMEOUT:-3600}
+                break
+                ;;
+            *) echo -e "${RED}Enter 1 or 2 only${NC}" ;;
+        esac
+    done
 
-              case $AUTO_CHOICE in
-                  1) MEMORY="1Gi"; CPU="1"; MIN_INST=1; MAX_INST=3; CONCURRENCY=100; TIMEOUT=3600 ;;
-                  2) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
-                  3) MEMORY="4Gi"; CPU="4"; MIN_INST=1; MAX_INST=4; CONCURRENCY=200; TIMEOUT=3600 ;;
-                  *) MEMORY="2Gi"; CPU="2"; MIN_INST=1; MAX_INST=5; CONCURRENCY=130; TIMEOUT=3600 ;;
-              esac
-              echo -e "${GREEN}âœ… Applied Preset: $MEMORY | $CPU vCPU | Min: $MIN_INST | Max: $MAX_INST | Concurrency: $CONCURRENCY${NC}"
-              break
-              ;;
-          2)
-              echo -e "\n${CYAN}=========================================${NC}"
-              echo -e "${GREEN}          BILLING MODE${NC}"
-              echo -e "${CYAN}=========================================${NC}"
-              echo "1) Request-Based  |  2) Instance-Based"
-              while true; do
-                  read -p "Select [1-2]: " BILLING_CHOICE
-                  case $BILLING_CHOICE in
-                      1) BILLING_MODE="request"; BILLING_FLAG="--cpu-throttling"; break ;;
-                      2) BILLING_MODE="instance"; BILLING_FLAG="--no-cpu-throttling"; break ;;
-                      *) echo -e "${RED}Enter 1 or 2 only${NC}" ;;
-                  esac
-              done
+    BUILD_DIR=$(mktemp -d)
+    trap 'rm -rf "$BUILD_DIR"' EXIT
+    cd "$BUILD_DIR" || exit 1
 
-              echo -e "\n${YELLOW}--- MANUAL SETUP ---${NC}"
-              read -p "Memory (e.g. 1Gi, 2Gi) [Default: 1Gi]: " MEMORY
-              MEMORY=${MEMORY:-1Gi}
-              read -p "vCPU (e.g. 1, 2) [Default: 1]: " CPU
-              CPU=${CPU:-1}
-              read -p "Min Instances [Default: 1]: " MIN_INST
-              MIN_INST=${MIN_INST:-1}
-              read -p "Max Instances [Default: 3]: " MAX_INST
-              MAX_INST=${MAX_INST:-3}
-              read -p "Concurrency [Default: 300]: " CONCURRENCY
-              CONCURRENCY=${CONCURRENCY:-300}
-              read -p "Timeout seconds [Default: 3600]: " TIMEOUT
-              TIMEOUT=${TIMEOUT:-3600}
-              break
-              ;;
-          *) echo -e "${RED}Enter 1 or 2 only${NC}" ;;
-      esac
-  done
+    clear
+    echo -e "\n${CYAN}=========================================${NC}"
+    echo -e "${GREEN}🚀 BUILDING AND DEPLOYING SOLID ENGINE ($DISPLAY_ENGINE)${NC}"
+    echo -e "${CYAN}=========================================${NC}\n"
 
-  BUILD_DIR=$(mktemp -d)
-  trap 'rm -rf "$BUILD_DIR"' EXIT
-  cd "$BUILD_DIR" || exit 1
-
-  clear
-  echo -e "\n${CYAN}=========================================${NC}"
-  echo -e "${GREEN}ðŸš€ BUILDING AND DEPLOYING SOLID ENGINE ($DISPLAY_ENGINE)${NC}"
-  echo -e "${CYAN}=========================================${NC}\n"
-
-  # Standard Xray config for non-pure-singbox backends
-  cat > config.json <<'EOF'
+    # Standard Xray config for non-pure-singbox backends
+    cat > config.json <<'EOF'
 {
   "log": { "loglevel": "warning" },
-  "dns": { "servers": ["8.8.8.8", "8.8.4.4"], "strategy": "UseIPv4" },
-  "policy": { "levels": { "0": { "handshake": 2, "connIdle": 3600, "bufferSize": 524288 } } },
+  "dns": {
+    "servers": ["8.8.8.8", "8.8.4.4"],
+    "strategy": "UseIPv4"
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "handshake": 2,
+        "connIdle": 3600,
+        "bufferSize": 524288
+      }
+    }
+  },
   "inbounds": [
     {
-      "tag": "trojan-ws", "port": 10001, "listen": "127.0.0.1", "protocol": "trojan",
+      "tag": "trojan-ws",
+      "port": 10001,
+      "listen": "127.0.0.1",
+      "protocol": "trojan",
       "settings": { "clients": [{"password": "gcp-xray", "level": 0}] },
-      "streamSettings": { "network": "ws", "wsSettings": { "path": "/trojan-ws" } }
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "/trojan-ws" }
+      }
     },
     {
-      "tag": "vless-ws", "port": 10002, "listen": "127.0.0.1", "protocol": "vless",
+      "tag": "vless-ws",
+      "port": 10002,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
       "settings": { "clients": [{"id": "a1b2c3d4-5678-40ef-98ab-cdef01234567", "level": 0}], "decryption": "none" },
-      "streamSettings": { "network": "ws", "wsSettings": { "path": "/vless-ws" } }
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "/vless-ws" }
+      }
     }
   ],
   "outbounds": [{ "protocol": "freedom", "tag": "direct" }]
 }
 EOF
 
-  DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}</style></head><body><div><h1>System Operational</h1><p>Gateway services working as expected.</p></div></body></html>'
+    DECOY_HTML='<!DOCTYPE html><html><head><title>System Status</title><style>body{font-family:sans-serif;background:#0d1117;color:#c9d1d9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}h1{color:#58a6ff;font-size:24px;}</style></head><body><div><h1>System Operational</h1><p>Gateway services working as expected.</p></div></body></html>'
 
-  # 1. OPENRESTY ENGINE
-  if [ "$ENGINE" = "openresty" ]; then
-    cat > nginx.conf <<EOF
+    # 1. OPENRESTY ENGINE
+    if [ "$ENGINE" = "openresty" ]; then
+        cat > nginx.conf <<EOF
 worker_processes auto;
 worker_rlimit_nofile 65535;
-events { worker_connections 8192; use epoll; multi_accept on; }
+events {
+    worker_connections 8192;
+    use epoll;
+    multi_accept on;
+}
 http {
-  include mime.types;
-  default_type application/octet-stream;
-  sendfile on; tcp_nodelay on; tcp_nopush on;
-  keepalive_timeout 3600s; keepalive_requests 100000;
-  proxy_buffering off; proxy_request_buffering off;
-  proxy_http_version 1.1;
+    include mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    tcp_nodelay on;
+    tcp_nopush on;
+    keepalive_timeout 3600s;
+    keepalive_requests 100000;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_http_version 1.1;
 
-  server {
-    listen 8080;
-    server_name _;
-    location /health { return 200 "OK\n"; add_header Content-Type text/plain; }
-    location / { default_type text/html; return 200 '$DECOY_HTML'; }
-    location /trojan-ws {
-      proxy_pass http://127.0.0.1:10001;
-      proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade";
-      proxy_set_header Host \$host; proxy_read_timeout 3600s; proxy_send_timeout 3600s;
+    server {
+        listen 8080;
+        server_name _;
+
+        location /health {
+            return 200 "OK\n";
+            add_header Content-Type text/plain;
+        }
+
+        location / {
+            default_type text/html;
+            return 200 '$DECOY_HTML';
+        }
+
+        location /trojan-ws {
+            proxy_pass http://127.0.0.1:10001;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host \$host;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
+
+        location /vless-ws {
+            proxy_pass http://127.0.0.1:10002;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host \$host;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
     }
-    location /vless-ws {
-      proxy_pass http://127.0.0.1:10002;
-      proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection "upgrade";
-      proxy_set_header Host \$host; proxy_read_timeout 3600s; proxy_send_timeout 3600s;
-    }
-  }
 }
 EOF
-    cat > entrypoint.sh <<'EOF'
+        cat > entrypoint.sh <<'EOF'
 #!/bin/sh
 /usr/local/bin/xray run -c /etc/xray.json &
 sleep 2
 exec /usr/local/openresty/bin/openresty -g 'daemon off;'
 EOF
-    chmod +x entrypoint.sh
-    cat > Dockerfile <<'EOF'
+        chmod +x entrypoint.sh
+
+        cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
+
 FROM openresty/openresty:alpine-fat
 COPY --from=builder /xray /usr/local/bin/xray
 COPY --from=builder /geosite.dat /usr/local/share/xray/
@@ -319,13 +361,14 @@ COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY entrypoint.sh /entrypoint.sh
+
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 2. ENVOY ENGINE
-  elif [ "$ENGINE" = "envoy" ]; then
-    cat > envoy.yaml <<EOF
+    # 2. ENVOY ENGINE
+    elif [ "$ENGINE" = "envoy" ]; then
+        cat > envoy.yaml <<EOF
 static_resources:
   listeners:
   - name: listener_0
@@ -353,41 +396,49 @@ static_resources:
                 direct_response: { status: 200, body: { inline_string: "Envoy Is Operational" } }
           http_filters:
           - name: envoy.filters.http.router
-            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
   clusters:
   - name: trojan_cluster
     connect_timeout: 10s
     type: STATIC
     lb_policy: ROUND_ROBIN
-    load_assignment: { cluster_name: trojan_cluster, endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10001 } } } }] }] }
+    load_assignment:
+      cluster_name: trojan_cluster
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10001 } } } }] }]
   - name: vless_cluster
     connect_timeout: 10s
     type: STATIC
     lb_policy: ROUND_ROBIN
-    load_assignment: { cluster_name: vless_cluster, endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10002 } } } }] }] }
+    load_assignment:
+      cluster_name: vless_cluster
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: 127.0.0.1, port_value: 10002 } } } }] }]
 EOF
-    cat > entrypoint.sh <<'EOF'
+        cat > entrypoint.sh <<'EOF'
 #!/bin/sh
 /usr/local/bin/xray run -c /etc/xray.json &
 sleep 2
 exec envoy -c /etc/envoy.yaml
 EOF
-    chmod +x entrypoint.sh
-    cat > Dockerfile <<'EOF'
+        chmod +x entrypoint.sh
+
+        cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
+
 FROM envoyproxy/envoy:v1.30-latest
 COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY envoy.yaml /etc/envoy.yaml
 COPY entrypoint.sh /entrypoint.sh
+
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 3. HAPROXY ENGINE
-  elif [ "$ENGINE" = "haproxy" ]; then
-    cat > haproxy.cfg <<EOF
+    # 3. HAPROXY ENGINE
+    elif [ "$ENGINE" = "haproxy" ]; then
+        cat > haproxy.cfg <<EOF
 global
     log stdout format raw local0
     maxconn 20000
@@ -423,29 +474,32 @@ backend trojan_backend
 backend vless_backend
     server xray2 127.0.0.1:10002
 EOF
-    cat > entrypoint.sh <<'EOF'
+        cat > entrypoint.sh <<'EOF'
 #!/bin/sh
 /usr/local/bin/xray run -c /etc/xray.json &
 sleep 2
 exec haproxy -f /usr/local/etc/haproxy/haproxy.cfg -db
 EOF
-    chmod +x entrypoint.sh
-    cat > Dockerfile <<'EOF'
+        chmod +x entrypoint.sh
+
+        cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
+
 FROM haproxy:2.8-alpine
 COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg
 COPY entrypoint.sh /entrypoint.sh
 USER root
+
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 4. CADDY ENGINE
-  elif [ "$ENGINE" = "caddy" ]; then
-    cat > Caddyfile <<EOF
+    # 4. CADDY ENGINE
+    elif [ "$ENGINE" = "caddy" ]; then
+        cat > Caddyfile <<EOF
 {
     admin off
     http_port 8080
@@ -478,28 +532,31 @@ EOF
     }
 }
 EOF
-    cat > entrypoint.sh <<'EOF'
+        cat > entrypoint.sh <<'EOF'
 #!/bin/sh
 /usr/local/bin/xray run -c /etc/xray.json &
 sleep 2
 exec caddy run --config /etc/Caddyfile --adapter caddyfile
 EOF
-    chmod +x entrypoint.sh
-    cat > Dockerfile <<'EOF'
+        chmod +x entrypoint.sh
+
+        cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
 RUN apk add --no-cache curl unzip && curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip && unzip -q xray.zip xray geosite.dat geoip.dat
+
 FROM caddy:2.7-alpine
 COPY --from=builder /xray /usr/local/bin/xray
 COPY config.json /etc/xray.json
 COPY Caddyfile /etc/Caddyfile
 COPY entrypoint.sh /entrypoint.sh
+
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
-  # 5. PURE SING-BOX ENGINE (FIXED SINGLE INBOUND PORT 8080)
-  elif [ "$ENGINE" = "singbox" ]; then
-    cat > singbox.json <<EOF
+    # 5. PURE SING-BOX ENGINE (FIXED SINGLE INBOUND PORT 8080)
+    elif [ "$ENGINE" = "singbox" ]; then
+        cat > singbox.json <<EOF
 {
   "log": {
     "level": "warn",
@@ -540,56 +597,55 @@ EOF
   }
 }
 EOF
-    cat > Dockerfile <<'EOF'
+        cat > Dockerfile <<'EOF'
 FROM ghcr.io/sagernet/sing-box:latest
 COPY singbox.json /etc/singbox.json
+
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/sing-box", "run", "-c", "/etc/singbox.json"]
 EOF
-  fi
+    fi
 
-  echo -e "${CYAN}ðŸ”¨ Building container image ($DISPLAY_ENGINE)...${NC}"
-  gcloud builds submit --project="$PROJECT_ID" --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
+    echo -e "${CYAN}🔨 Building container image ($DISPLAY_ENGINE)...${NC}"
+    gcloud builds submit --project="$PROJECT_ID" --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
 
-  echo -e "${CYAN}ðŸš€ Deploying to Cloud Run...${NC}"
-  gcloud run deploy "$CLOUD_RUN_SERVICE_NAME" \
-    --image gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
-    --project="$PROJECT_ID" --platform managed --region "$REGION" --allow-unauthenticated \
-    --port 8080 --memory "$MEMORY" --cpu "$CPU" --concurrency "$CONCURRENCY" \
-    --timeout "$TIMEOUT" --min-instances "$MIN_INST" --max-instances "$MAX_INST" \
-    --session-affinity \
-    --execution-environment gen2 $BILLING_FLAG --cpu-boost --quiet
+    echo -e "${CYAN}🚀 Deploying to Cloud Run...${NC}"
+    gcloud run deploy "$CLOUD_RUN_SERVICE_NAME" \
+        --image gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
+        --project="$PROJECT_ID" --platform managed --region "$REGION" --allow-unauthenticated \
+        --port 8080 --memory "$MEMORY" --cpu "$CPU" --concurrency "$CONCURRENCY" \
+        --timeout "$TIMEOUT" --min-instances "$MIN_INST" --max-instances "$MAX_INST" \
+        --session-affinity \
+        --execution-environment gen2 $BILLING_FLAG --cpu-boost --quiet
 
-  CLOUD_RUN_URL=$(gcloud run services describe "$CLOUD_RUN_SERVICE_NAME" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')
-  DOMAIN=$(echo "$CLOUD_RUN_URL" | sed 's|https://||')
-  CANONICAL_LINK="https://$DOMAIN"
+    CLOUD_RUN_URL=$(gcloud run services describe "$CLOUD_RUN_SERVICE_NAME" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')
+    DOMAIN=$(echo "$CLOUD_RUN_URL" | sed 's|https://||')
+    CANONICAL_LINK="https://$DOMAIN"
 
-  clear
-  echo -e "\n${CYAN}=========================================${NC}"
-  echo -e "${GREEN}âœ… DEPLOYMENT SUCCESSFUL! ENGINE: ${ENGINE^^}${NC}"
-  echo -e "${CYAN}=========================================${NC}"
-  echo -e "${GREEN}ðŸ”— URL / HOST:${NC} $CANONICAL_LINK"
-  echo -e "${GREEN}ðŸ’š HEALTH CHECK:${NC} $CANONICAL_LINK/health"
-  echo -e "${CYAN}=========================================${NC}"
-
-  read -p $'\nPress [Enter] to return to Main Menu...'
+    clear
+    echo -e "\n${CYAN}=========================================${NC}"
+    echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL! ENGINE: ${ENGINE^^}${NC}"
+    echo -e "${CYAN}=========================================${NC}"
+    echo -e "${GREEN}🔗 URL / HOST:${NC} $CANONICAL_LINK"
+    echo -e "${GREEN}💚 HEALTH CHECK:${NC} $CANONICAL_LINK/health"
+    echo -e "${CYAN}=========================================${NC}"
+    read -p $'\nPress [Enter] to return to Main Menu...'
 }
 
 while true; do
-  clear
-  echo "======================================"
-  echo "     PENTA-PROXY GCP DEPLOYER MENU  "
-  echo "======================================"
-  echo "1) Deploy New GCP Service (Fixed & Solid)"
-  echo "2) List All Services & FULL DETAILS"
-  echo "3) Exit Script"
-  echo "======================================"
-  read -p "Select Option [1-3]: " MENU_CHOICE
-
-  case $MENU_CHOICE in
-    1) deploy_new_service ;;
-    2) list_deployed_services ;;
-    3) echo -e "\nðŸ‘‹ Goodbye!"; exit 0 ;;
-    *) echo -e "${RED}âŒ Enter 1/2/3 only${NC}"; sleep 2 ;;
-  esac
+    clear
+    echo "======================================"
+    echo "    PENTA-PROXY GCP DEPLOYER MENU "
+    echo "======================================"
+    echo "1) Deploy New GCP Service (Fixed & Solid)"
+    echo "2) List All Services & FULL DETAILS"
+    echo "3) Exit Script"
+    echo "======================================"
+    read -p "Select Option [1-3]: " MENU_CHOICE
+    case $MENU_CHOICE in
+        1) deploy_new_service ;;
+        2) list_deployed_services ;;
+        3) echo -e "\n👋 Goodbye!"; exit 0 ;;
+        *) echo -e "${RED}❌ Enter 1/2/3 only${NC}"; sleep 2 ;;
+    esac
 done
