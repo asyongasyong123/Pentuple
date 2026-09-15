@@ -682,8 +682,7 @@ EOF
       "users": [{ "password": "gcp-xray" }],
       "transport": {
         "type": "ws",
-        "path": "/trojan-ws",
-        "max_early_data": 2048
+        "path": "/trojan-ws"
       }
     },
     {
@@ -694,8 +693,7 @@ EOF
       "users": [{ "uuid": "a1b2c3d4-5678-40ef-98ab-cdef01234567" }],
       "transport": {
         "type": "ws",
-        "path": "/vless-ws",
-        "max_early_data": 2048
+        "path": "/vless-ws"
       }
     }
   ],
